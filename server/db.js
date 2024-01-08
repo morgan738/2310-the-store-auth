@@ -6,14 +6,19 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 
 
-const fetchLineItems = async()=> {
+const fetchLineItems = async(userId)=> {
   const SQL = `
-    SELECT *
+    SELECT line_items.*
     FROM
     line_items
+    JOIN orders
+    ON orders.id = line_items.order_id
+    JOIN users
+    ON users.id = orders.user_id
+    WHERE users.id = $1
     ORDER BY product_id
   `;
-  const response = await client.query(SQL);
+  const response = await client.query(SQL, [userId]);
   return response.rows;
 };
 
@@ -161,16 +166,18 @@ const updateOrder = async(order)=> {
   return response.rows[0];
 };
 
-const fetchOrders = async()=> {
+const fetchOrders = async(userId)=> {
   const SQL = `
     SELECT * 
-    FROM orders;
+    FROM orders
+    WHERE user_id = $1;
   `;
-  const response = await client.query(SQL);
+  const response = await client.query(SQL, [userId]);
   const cart = response.rows.find(row => row.is_cart);
   if(!cart){
-    await client.query('INSERT INTO orders(is_cart, id) VALUES(true, $1)', [uuidv4()]); 
-    return fetchOrders();
+    await client.query('INSERT INTO orders(is_cart, id, user_id) VALUES(true, $1, $2)', 
+    [uuidv4(), userId]); 
+    return fetchOrders(userId);
   }
   return response.rows;
 };
@@ -198,7 +205,8 @@ const seed = async()=> {
     CREATE TABLE orders(
       id UUID PRIMARY KEY,
       created_at TIMESTAMP DEFAULT now(),
-      is_cart BOOLEAN NOT NULL DEFAULT true
+      is_cart BOOLEAN NOT NULL DEFAULT true,
+      user_id UUID REFERENCES users(id) NOT NULL
     );
 
     CREATE TABLE line_items(
@@ -226,7 +234,7 @@ const seed = async()=> {
     createProduct({ name: 'bazz' }),
     createProduct({ name: 'quq' }),
   ]);
-  let orders = await fetchOrders();
+  let orders = await fetchOrders(morgan.id);
   let cart = orders.find(order => order.is_cart);
   let lineItem = await createLineItem({ order_id: cart.id, product_id: foo.id});
   lineItem.quantity++;

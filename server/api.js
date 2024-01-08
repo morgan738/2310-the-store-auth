@@ -17,6 +17,7 @@ const isLoggedIn = async(req,res,next) => {
   try {
     const user = await findUserByToken(req.headers.authorization)
     req.user = user
+    console.log("loggedin ", req.user)
     next()
   } catch (error) {
     next(error)
@@ -49,7 +50,7 @@ app.get('/products', async(req, res, next)=> {
   }
 });
 
-app.put('/orders/:id', async(req, res, next)=> {
+app.put('/orders/:id', isLoggedIn, async(req, res, next)=> {
   try {
     res.send(await updateOrder({ ...req.body, id: req.params.id}));
   }
@@ -58,25 +59,26 @@ app.put('/orders/:id', async(req, res, next)=> {
   }
 });
 
-app.get('/orders', async(req, res, next)=> {
+app.get('/orders', isLoggedIn, async(req, res, next)=> {
   try {
-    res.send(await fetchOrders());
+    console.log(req.user)
+    res.send(await fetchOrders(req.user.id));
   }
   catch(ex){
     next(ex);
   }
 });
 
-app.get('/lineItems', async(req, res, next)=> {
+app.get('/lineItems', isLoggedIn, async(req, res, next)=> {
   try {
-    res.send(await fetchLineItems());
+    res.send(await fetchLineItems(req.user.id));
   }
   catch(ex){
     next(ex);
   }
 });
 
-app.post('/lineItems', async(req, res, next)=> {
+app.post('/lineItems', isLoggedIn, async(req, res, next)=> {
   try {
     res.send(await createLineItem(req.body));
   }
@@ -85,7 +87,7 @@ app.post('/lineItems', async(req, res, next)=> {
   }
 });
 
-app.put('/lineItems/:id', async(req, res, next)=> {
+app.put('/lineItems/:id', isLoggedIn, async(req, res, next)=> {
   try {
     res.send(await updateLineItem({...req.body, id: req.params.id}));
   }
@@ -94,7 +96,7 @@ app.put('/lineItems/:id', async(req, res, next)=> {
   }
 });
 
-app.delete('/lineItems/:id', async(req, res, next)=> {
+app.delete('/lineItems/:id', isLoggedIn, async(req, res, next)=> {
   try {
     await deleteLineItem({ id: req.params.id });
     res.sendStatus(204);
